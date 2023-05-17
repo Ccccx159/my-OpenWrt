@@ -1,0 +1,3 @@
+[submodule "openwrt/lede"]
+	path = openwrt/lede
+	url = https://github.com/coolsnowwolf/lede.git
