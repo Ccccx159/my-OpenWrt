@@ -1,6 +1,7 @@
 #!/bin/bash
 
 root_dir=$(pwd) # 保存当前目录
+git submodule update --init --recursive
 rm ${root_dir}/env.sh -rf
 # 获取依赖，并更新
 line_no=$(grep -wn "安装编译依赖" ${root_dir}/lede/README.md | awk -F ':' '{print $1}')
@@ -27,7 +28,6 @@ done
 cat ${root_dir}/env.sh
 source ${root_dir}/env.sh
 
-git submodule update --init --recursive
 sed -i '$a src-git tencent_ddns https://github.com/Tencent-Cloud-Plugins/tencentcloud-openwrt-plugin-ddns.git' ${root_dir}/lede/feeds.conf.default
 sed -i '$a src-git openclash https://github.com/vernesong/OpenClash.git' ${root_dir}/lede/feeds.conf.default
 ${root_dir}/lede/scripts/feeds update -a
