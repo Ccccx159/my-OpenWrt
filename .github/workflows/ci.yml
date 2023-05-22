@@ -1,0 +1,38 @@
+name: OpenWrt-CI
+
+on:
+  schedule:
+    - cron: 0 20 * * *
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build_openwrt:
+    name: Build OpenWrt Firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: space cleanup and initiallzation environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi `docker images -q`
+          sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-mark hold grub-efi-amd64-signed
+
+      - name: checkout openwrt source code
+        uses: actions/checkout@v3          
+
+      - name: run build script
+        run: |
+          chmod +x ./build.sh
+          bash ./build.sh
+          mkdir -p ./artifacts/firmware
+          cp -rf $(find ./lede/bin/targets -type f -name "openwrt-*.img.gz") ./artifacts/firmware
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: OpenWrt_firmware
+          path: ./artifacts/firmware
