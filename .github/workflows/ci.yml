@@ -2,12 +2,15 @@ name: OpenWrt-CI
 
 on:
   schedule:
-    - cron: 0 0 1 * *
+    - cron: 0 16 * * 0
   push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
+    
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build_openwrt:
@@ -31,9 +34,36 @@ jobs:
           bash ./build.sh
           mkdir -p ./artifacts/firmware
           cp -rf $(find ./lede/bin/targets -type f -name "openwrt-*.img.gz") ./artifacts/firmware
+          echo "strDate=$(TZ=UTC-8 date +%Y-%m-%d)" >> $GITHUB_ENV
 
       - name: Upload firmware
         uses: actions/upload-artifact@v3
         with:
           name: OpenWrt_firmware
-          path: ./artifacts/firmware
+          path: ./artifacts/firmware/*.gz
+
+      - name: if_schedule
+        if: github.event_name == 'schedule'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.strDate }}
+          name: 自动构建 ${{ env.strDate }}
+          draft: false
+          prerelease: false
+          files: ./artifacts/firmware/*.gz
+      
+      - name: get_tag
+        if: github.event_name == 'push'
+        id: get_tag
+        run: |
+          echo "tag=$(echo ${GITHUB_REF#refs/*/})" >> $GITHUB_ENV
+
+      - name: if_push
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ env.tag }}
+          draft: false
+          prerelease: false
+          files: ./artifacts/firmware/*.gz
