@@ -1,0 +1,83 @@
+name: OpenWrt-Build-Manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: 'Selet the platform to build'
+        options:
+          - 'x86'
+          - 'r2s'
+      
+
+permissions:
+  contents: read
+
+jobs:
+  build_openwrt:
+    name: Build OpenWrt Firmware
+    runs-on: ubuntu-latest
+    steps:
+      - name: space cleanup and initiallzation environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi `docker images -q`
+          sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-mark hold grub-efi-amd64-signed
+
+      - name: checkout openwrt source code
+        uses: actions/checkout@v3
+
+      - name: checkout lede submodule
+        run: |
+          git submodule update --init --recursive
+        
+      - name: install dependencies
+        run: |
+          line_no=$(grep -wn "安装编译依赖" ./lede/README.md | awk -F ':' '{print $1}')
+          env_write="false"
+          while :
+          do
+              # echo -e "pos_end is ${pos_end}"
+              line=$(sed -n "${line_no}, ${line_no}p" ./lede/README.md)
+              # echo -e "line is ${line}"
+              if [[ ${line} =~ (.*\`+$) ]]; then
+                  break
+              fi
+              if [[ ${line} =~ (.*\`+bash) ]]; then
+                  env_write="true"
+                  let line_no+=1
+                  continue
+              fi
+              if [[ "${env_write}" == "true" ]]; then
+                  echo -e "${line}" >> ./env.sh
+              fi
+              let line_no+=1
+          done
+          cat ./env.sh
+          source ./env.sh
+
+      - name: update feeds
+        run: |
+          sed -i '$a src-git tencent_ddns https://github.com/Tencent-Cloud-Plugins/tencentcloud-openwrt-plugin-ddns.git' ./lede/feeds.conf.default
+          sed -i '$a src-git openclash https://github.com/vernesong/OpenClash.git' ./lede/feeds.conf.default
+          ./lede/scripts/feeds update -a
+          ./lede/scripts/feeds install -a
+
+      - name: compile openwrt firmware
+        run: |
+          cp ./.config.${{ github.event.inputs.platform }} ./lede/.config
+          make -C lede download -j$(nproc) || exit 1
+          echo -e "make download success"
+          make -C lede -j$(nproc) || make -C lede -j1 V=s || exit 1
+          echo -e "make success"
+          mkdir -p ./artifacts/firmware/${{ github.event.inputs.platform }}
+          cp -rf $(find ./lede/bin/targets -type f -name "openwrt-*.img.gz") ./artifacts/firmware/${{ github.event.inputs.platform }}
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: OpenWrt_firmware
+          path: ./artifacts/firmware
