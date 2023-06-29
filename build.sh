@@ -28,6 +28,8 @@ done
 cat ${root_dir}/env.sh
 source ${root_dir}/env.sh
 
+mkdir -p ${root_dir}/artifacts/firmware
+
 sed -i '$a src-git tencent_ddns https://github.com/Tencent-Cloud-Plugins/tencentcloud-openwrt-plugin-ddns.git' ${root_dir}/lede/feeds.conf.default
 sed -i '$a src-git openclash https://github.com/vernesong/OpenClash.git' ${root_dir}/lede/feeds.conf.default
 ${root_dir}/lede/scripts/feeds update -a
@@ -46,5 +48,7 @@ do
     echo -e "make download success"
     make -C lede -j$(nproc) || make -C lede -j1 V=s || exit 1
     echo -e "make success"
+    cp -rf $(find ${root_dir}/lede/bin/targets -type f -name "openwrt-*.img.gz") ${root_dir}/artifacts/firmware
+    make dirclean
 done
 
