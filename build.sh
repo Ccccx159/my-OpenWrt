@@ -49,6 +49,6 @@ do
     make -C lede -j$(nproc) || make -C lede -j1 V=s || exit 1
     echo -e "make success"
     cp -rf $(find ${root_dir}/lede/bin/targets -type f -name "openwrt-*.img.gz") ${root_dir}/artifacts/firmware
-    make dirclean
+    make clean
 done
 
